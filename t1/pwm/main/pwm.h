@@ -5,7 +5,7 @@
 class PWM {
     public:
         void init(gpio_num_t PINO);
-        void cicloTrabalho(?? tempo_em_us);
+        void cicloTrabalho(uint64_t tempo_em_us);
 };
 
 extern PWM pwm;
