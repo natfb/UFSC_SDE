@@ -11,7 +11,7 @@ esp_timer_handle_t oneshot_timer;
 gpio_num_t pino;
 
 // testar o motor pra ver o 100% de rpm
-//  
+//  low = 100% - high
 
 static void timer_periodico (void* arg)
 {
