@@ -18,13 +18,13 @@ volatile int t_ciclo_de_trabalho = 2500;
 
 static void timer_periodico (void* arg)
 {
-    digitalWrite(pino, HIGH);
+    gpio_set_level(pino, HIGH);
     esp_timer_start_once(oneshot_timer, tempo_em_us);
 }
 
 static void oneshot_timer_callback(void* arg)
 {
-    digitalWrite(pino, LOW);
+    gpio_set_level(pino, LOW);
 }
 
 void PWM::init(gpio_num_t PINO)

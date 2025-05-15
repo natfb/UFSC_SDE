@@ -22,7 +22,7 @@ void app_main(void)
     gpio_set_direction(HALL, GPIO_MODE_INPUT);
     gpio_set_pull_mode(HALL, GPIO_PULLUP_ONLY);
 
-    gpio_install_isr_servise();
+    gpio_install_isr_service(1);
     gpio_set_intr_type(HALL, GPIO_INTR_POSEDGE);
     gpio_isr_handler_add(HALL, INTERRUPCAO, NULL);
 
