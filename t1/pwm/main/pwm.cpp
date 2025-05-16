@@ -8,7 +8,7 @@
 
 esp_timer_handle_t periodic_timer;
 esp_timer_handle_t oneshot_timer;
-gpio_num_t pino
+gpio_num_t pino;
 uint64_t tempo_em_us;
 
 volatile int t_ciclo_de_trabalho = 2500;
@@ -30,7 +30,7 @@ static void oneshot_timer_callback(void* arg)
 void PWM::init(gpio_num_t PINO)
 {
     pino = PINO;
-    pinMode(pino, OUTPUT); //pino saída para controlar o transistor que liga o motor.
+    gpio_set_direction(pino, GPIO_MODE_OUTPUT);//pino saída para controlar o transistor que liga o motor.
 }
 
 void PWM::cicloTrabalho(uint64_t tempo_em_us)
