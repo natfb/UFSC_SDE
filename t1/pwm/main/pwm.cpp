@@ -8,7 +8,7 @@
 
 esp_timer_handle_t periodic_timer;
 esp_timer_handle_t oneshot_timer;
-gpio_num_t pino;
+gpio_num_t pino
 uint64_t tempo_em_us;
 
 volatile int t_ciclo_de_trabalho = 2500;
@@ -18,15 +18,13 @@ volatile int t_ciclo_de_trabalho = 2500;
 
 static void timer_periodico (void* arg)
 {
-    gpio_set_direction(pino, GPIO_MODE_OUTPUT); //config pino como saida
-    gpio_set_level(pino, HIGH);
+    gpio_set_level(pino, 1);
     esp_timer_start_once(oneshot_timer, tempo_em_us); //Inicia um cronômetro de disparo.
 }
 
 static void oneshot_timer_callback(void* arg)
 {
-    gpio_set_direction(pino, GPIO_MODE_OUTPUT);
-    gpio_set_level(pino, LOW);
+    gpio_set_level(pino, 0);
 }
 
 void PWM::init(gpio_num_t PINO)
