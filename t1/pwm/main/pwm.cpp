@@ -11,9 +11,12 @@ esp_timer_handle_t oneshot_timer;
 gpio_num_t pino;
 uint64_t tempo_em_us;
 
-volatile int t_ciclo_de_trabalho = 2500;
+uint64_t frequencia = 50;
+double periodo = 1 / frequencia;
+
+volatile int t_ciclo_de_trabalho = periodo * 1000000;
 // tempo do ciclo de trabalho = 1 / rpm | tranf em us
-// na vdd 1/f 
+// na vdd 1/f * 1000000 
 // testar o motor pra ver o 100% de rpm
 // low = 100% - high 
 
