@@ -26,6 +26,9 @@ void app_main(void)
     gpio_set_intr_type(HALL, GPIO_INTR_POSEDGE);
     gpio_isr_handler_add(HALL, INTERRUPCAO, NULL);
 
+    int tempo_em_us = 34;
+    
+    PWM.cicloTrabalho(tempo_em_us);
     int x;
 
     while (1) {
