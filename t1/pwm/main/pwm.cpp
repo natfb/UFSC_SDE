@@ -9,10 +9,11 @@
 esp_timer_handle_t periodic_timer;
 esp_timer_handle_t oneshot_timer;
 gpio_num_t pino;
-uint64_t tempo_em_us;
+uint64_t tempo_em_us_pwm;
 
-uint64_t frequencia = 50;
+double frequencia = 2090;
 double periodo = 1 / frequencia;
+// 478
 
 volatile int t_ciclo_de_trabalho = periodo * 1000000;
 // tempo do ciclo de trabalho = 1 / rpm | tranf em us
@@ -23,7 +24,7 @@ volatile int t_ciclo_de_trabalho = periodo * 1000000;
 static void timer_periodico (void* arg)
 {
     gpio_set_level(pino, 1);
-    esp_timer_start_once(oneshot_timer, tempo_em_us); //Inicia um cronômetro de disparo.
+    esp_timer_start_once(oneshot_timer, tempo_em_us_pwm); //Inicia um cronômetro de disparo.
 }
 
 static void oneshot_timer_callback(void* arg)
@@ -39,6 +40,7 @@ void PWM::init(gpio_num_t PINO)
 
 void PWM::cicloTrabalho(uint64_t tempo_em_us)
 {
+    tempo_em_us_pwm = tempo_em_us;
     const esp_timer_create_args_t parametros = {.callback = &timer_periodico}; //essa função será chamada automaticamente quando o periódico expirar
     const esp_timer_create_args_t oneshot_timer_args = {.callback = &oneshot_timer_callback};
 
@@ -47,6 +49,8 @@ void PWM::cicloTrabalho(uint64_t tempo_em_us)
 
     esp_timer_start_periodic(periodic_timer, t_ciclo_de_trabalho);
 }
+
+PWM pwm;
 
 
 
