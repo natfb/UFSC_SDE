@@ -27,9 +27,12 @@ void app_main(void)
     // gpio_set_level(PINO, 1);
     
     // pwm
-    
     pwm.init(PINO);
     pwm.cicloTrabalho(470);
+    // tempo do pwm:
+    // [0, 400]
+    // > 400 explode o codigo por motivos indeterminados 
+    // teoricamente iria ate 478
 
     // hall
     gpio_set_direction(HALL, GPIO_MODE_INPUT);
