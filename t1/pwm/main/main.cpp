@@ -33,6 +33,10 @@ void app_main(void)
     // [0, 400]
     // > 400 explode o codigo por motivos indeterminados 
     // teoricamente iria ate 478
+    //Se o ciclo tempo_em_us == período, o pino fica sempre ligado → sinal DC → frequência zero, ou medições erradas.
+    //Para frequência 2090 Hz (período 478 us), use algo como 450 us para ciclo alto, 28 us para ciclo baixo.
+    //Se o tempo ligado = período, o timer one-shot pode acabar sendo acionado exatamente no mesmo tempo que o período, gerando conflito.
+    //O pino sendo ligado e desligado a cada 2 períodos em vez de 1 (ou seja, frequência dividida por 2).
 
     // hall
     gpio_set_direction(HALL, GPIO_MODE_INPUT);
