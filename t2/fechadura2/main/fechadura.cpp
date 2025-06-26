@@ -13,30 +13,32 @@
 //
 //
 //  OBS: o parâmetro -b indica a velocidade que  upload ocorre, 460800 é uma velocidade rápida
-//  se não conseguir fazer upload nessa velocidade, seu cabo USB pode ser de baixa qualidade, tente trocar o cabo
-// ou reduzir a velocidade de upload.
+//  mas alguns ESPs e cabos USB podem tolerar taxas maiores, tente 921600. 
+//  se não conseguir fazer upload nessas velocidades, seu cabo USB pode ser de baixa qualidade, tente trocar o cabo
+//  ou reduzir a velocidade de upload para 115200 .
 
 
 
 #include <string.h>
-#include "esp_wifi.h"
-#include "esp_event.h"
-#include "esp_netif.h"
-#include "esp_http_server.h"
-#include "esp_spiffs.h"
-#include "nvs_flash.h"
 #include "mdns.h"
 #include "cJSON.h"
+#include "web.h"
+#include "wifi.h"
+#include "FS.h"
+#include "mdns2.h"
 
 #define AP_SSID      "PORTA_124"
 #define AP_CHANNEL   1
 #define MAX_CONN     4
 
-#define GPIO_OUTPUT_PIN 2
+#define NOME_MDNS "porta"   // ping porta.local
 
-#define MDNS "porta"
-#define ESP_VFS_PATH_MAX  128
-#define MIN(A,B)  ((A<B)?A:B)
+WEBSERVER webServer;
+WIFI wifi;
+FS sist_arquivos;
+MDNS mdns;
+
+
 
 static const char* get_content_type(const char* path) {
     if (strstr(path, ".html")) return "text/html";
@@ -46,10 +48,12 @@ static const char* get_content_type(const char* path) {
     if (strstr(path, ".jpg"))  return "image/jpeg";
     return "text/plain";
 }
+static esp_err_t serve_estaticos(httpd_req_t *req) {
+    char nome[20];
 
-static esp_err_t file_handler(httpd_req_t *req) {
+    sist_arquivos.nomeParticao(nome);
       char filepath[ESP_VFS_PATH_MAX + 128];
-      strcpy(filepath,"/storage");
+      strcpy(filepath,nome);
       strcat(filepath,req->uri);
     if (req->uri[strlen(req->uri)-1] == '/') {
         strcat(filepath, "index.html");
@@ -77,20 +81,7 @@ static esp_err_t file_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
-
-void mdns_setup(void) {
-    ESP_ERROR_CHECK(mdns_init());
-    ESP_ERROR_CHECK(mdns_hostname_set(MDNS));
-    ESP_ERROR_CHECK(mdns_instance_name_set("ESP32 com mDNS"));
-
-    // Registrar um serviço HTTP
-    ESP_ERROR_CHECK(mdns_service_add("ESPHTTP", "_http", "_tcp", 80, NULL, 0));
-}
-
-
-
-
-esp_err_t testa_senha(httpd_req_t *req) {
+esp_err_t rota_senha(httpd_req_t *req) {
     char buf[200];
     int ret = httpd_req_recv(req, buf, MIN(req->content_len, sizeof(buf) - 1));
     if (ret <= 0) return ESP_FAIL;
@@ -115,7 +106,6 @@ esp_err_t testa_senha(httpd_req_t *req) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Campo 'ID' ausente");
         return ESP_FAIL;
     }
-    printf("Recebeu ID=%s e senha=%s\n",ID->valuestring, senha->valuestring);
 
       cJSON *resposta = cJSON_CreateObject();
 
@@ -129,21 +119,20 @@ esp_err_t testa_senha(httpd_req_t *req) {
     // 
     if ((strcmp(senha->valuestring,"1234")==0) && (strcmp(ID->valuestring,"aluno")==0))
     {
-        printf("Sucesso\n");
+        printf("Recebeu ID=%-10s e senha=%-10s    Status:Sucesso\n",ID->valuestring, senha->valuestring);
+
         // envia msg de sucesso e abre a porta
         cJSON_AddStringToObject(resposta, "Status", "Sucesso");
 
     }
     else
     {
-        printf("Falha\n");
+        printf("Recebeu ID=%-10s e senha=%-10s    Status:Falha\n",ID->valuestring, senha->valuestring);
         // Envia mensagem de falha
         cJSON_AddStringToObject(resposta, "Status", "Falha");
     }
     cJSON_Delete(json);
 
-
-  
     const char *res_str = cJSON_PrintUnformatted(resposta);
 
     httpd_resp_set_type(req, "application/json");
@@ -155,82 +144,18 @@ esp_err_t testa_senha(httpd_req_t *req) {
 }
 
 
-// ------------------------------------------------------------
-void start_server() {
-    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-        config.uri_match_fn = httpd_uri_match_wildcard;
-
-    httpd_handle_t server = NULL;
-   httpd_uri_t uri = {
-            .uri = "/*",
-            .method = HTTP_GET,
-            .handler = file_handler
-            };
-
-
-    if (httpd_start(&server, &config) == ESP_OK) {
-        httpd_register_uri_handler(server, &(httpd_uri_t){ .uri = "/senha", .method = HTTP_POST, .handler = testa_senha });
-        httpd_register_uri_handler(server, &uri);
-
-
-
-    }else printf("Erro criando rotas\n");
-    
-}
-
-
-esp_err_t init_spiffs(){
-    esp_vfs_spiffs_conf_t config = {
-        .base_path="/storage",
-        .partition_label = NULL,
-        .max_files = 10,
-        .format_if_mount_failed = true
-    };
-    printf(" >> Inicializa particao de dados\n");
-    return esp_vfs_spiffs_register(&config);
-}
-
-void wifi_init_accessPoint(void)
-{
-    esp_netif_init();
-    esp_event_loop_create_default();
-    esp_netif_create_default_wifi_ap();
-
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-    wifi_config_t ap_cfg = {
-        .ap = {
-            .ssid = AP_SSID,
-            .ssid_len = strlen(AP_SSID),
-            .channel = AP_CHANNEL,
-            .max_connection = 10,
-            .authmode = WIFI_AUTH_OPEN,
-             .beacon_interval = 100,
-        },
-    };
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_cfg));
-    ESP_ERROR_CHECK(esp_wifi_start());
-
-}
+extern "C" void app_main() ;
 
 void app_main(void) {
+    sist_arquivos.start("/storage", 10);                  // Usa SA na Flash
 
-    nvs_flash_init();
-    init_spiffs();
-    wifi_init_accessPoint();
-    start_server();
-    mdns_setup();
+    wifi.accessPoint(AP_SSID,AP_CHANNEL,MAX_CONN);        // Cria um AccessPoint
+    mdns.start(NOME_MDNS);                                // Cria um mDNS para acesso usando nome ex: ping porta.local
 
+    webServer.addHandler("/*",     HTTP_GET, serve_estaticos);  // Serve arquivos estáticos
+    webServer.addHandler("/senha", HTTP_POST,rota_senha);       // Trata Rota 
 
-    printf("Access point ESP funcionando.\n");
-    printf("Após conectar no access point, acesse o mesmo com o nome:%s.local\n",MDNS);
-
-
-    // 
-    // Insira aqui a parte que mostra  o menu do banco de dados e permite as operações
-    //
+    webServer.start();                                    // Inicia servidor WEB
 
 }
 

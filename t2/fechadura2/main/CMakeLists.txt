@@ -1,4 +1,4 @@
-idf_component_register(SRCS "fechadura.c"
+idf_component_register(SRCS "fechadura.cpp" "web.cpp" "wifi.cpp" "FS.cpp" "mdns2.cpp"
                     INCLUDE_DIRS "."
                     REQUIRES  esp_wifi  spiffs esp_event esp_netif nvs_flash esp_http_server json)
 
