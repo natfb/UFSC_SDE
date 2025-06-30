@@ -27,6 +27,8 @@
 #include "FS.h"
 #include "mdns2.h"
 
+#include "i2c.h"
+
 #define AP_SSID      "PORTA_124"
 #define AP_CHANNEL   1
 #define MAX_CONN     4
@@ -156,6 +158,51 @@ void app_main(void) {
     webServer.addHandler("/senha", HTTP_POST,rota_senha);       // Trata Rota 
 
     webServer.start();                                    // Inicia servidor WEB
+
+    uint8_t vet[200];
+    // menu com as opcoes
+    printf("[1] Lista todas as IDs e senhas\n[2] Adiciona uma nova entrada (ID e Senha)\n[3] Mostra qtd de pessoas cadastradas\n[4] Remove uma entrada de ID/senha\n[5] Inicializa BD\n");
+    
+    while(1) {
+        // 
+        // como q pega input??
+        int input = 0;
+        scanf("%d", &input);
+        getchar(); // Limpa o buffer do teclado
+        
+        // acho q isso aqqui ta no luagr errado
+        switch(input) {
+            case '1':
+                // lee bytes
+                // tem que trocar esse x<100 por algo
+                for (int x=0;x<100;x++)
+                {
+                    vet[x]=i2c.listaTodos(x);
+                }
+
+                // Mostra bytes
+                for (int x=0;x<100;x++)
+                {
+                    printf("%d - Usuario e senha: %d\n", x, vet[x]);
+                }
+                break;
+            case '2':
+                // adicionar nova entrada
+                break;
+            case '3':
+                // mostrar qtd de pessoas cadastradas
+                // tem que pegar do cabeçalho -> coloquei no readme
+                break;
+            case '4':
+                // remover uma entrada de ID/senha
+                break;
+            case '5':
+                // inicializar BD
+                break;
+            default:
+                printf("Opção inválida!\n");
+        }
+    };
 
 }
 
