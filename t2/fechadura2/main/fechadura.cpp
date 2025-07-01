@@ -148,29 +148,20 @@ esp_err_t rota_senha(httpd_req_t *req) {
 
 extern "C" void app_main() ;
 
-void app_main(void) {
-    sist_arquivos.start("/storage", 10);                  // Usa SA na Flash
+void mostraMenu() {
+    printf("[1] Lista todas as IDs e senhas\n[2] Adiciona uma nova entrada (ID e Senha)\n[3] Mostra qtd de pessoas cadastradas\n[4] Remove uma entrada de ID/senha\n[5] Inicializa BD\n");
 
-    wifi.accessPoint(AP_SSID,AP_CHANNEL,MAX_CONN);        // Cria um AccessPoint
-    mdns.start(NOME_MDNS);                                // Cria um mDNS para acesso usando nome ex: ping porta.local
+}
 
-    webServer.addHandler("/*",     HTTP_GET, serve_estaticos);  // Serve arquivos estáticos
-    webServer.addHandler("/senha", HTTP_POST,rota_senha);       // Trata Rota 
-
-    webServer.start();                                    // Inicia servidor WEB
-
+void menu_console_task(void *pvParameter) {
     uint8_t vet[200];
     // menu com as opcoes
-    printf("[1] Lista todas as IDs e senhas\n[2] Adiciona uma nova entrada (ID e Senha)\n[3] Mostra qtd de pessoas cadastradas\n[4] Remove uma entrada de ID/senha\n[5] Inicializa BD\n");
-    
+    mostraMenu();
+    int input = 0;
+
     while(1) {
-        // 
-        // como q pega input??
-        int input = 0;
-        scanf("%d", &input);
-        getchar(); // Limpa o buffer do teclado
+        input = getchar();
         
-        // acho q isso aqqui ta no luagr errado
         switch(input) {
             case '1':
                 // lee bytes
@@ -185,24 +176,43 @@ void app_main(void) {
                 {
                     printf("%d - Usuario e senha: %d\n", x, vet[x]);
                 }
+
+                mostraMenu();
                 break;
             case '2':
                 // adicionar nova entrada
+                mostraMenu();
                 break;
             case '3':
                 // mostrar qtd de pessoas cadastradas
                 // tem que pegar do cabeçalho -> coloquei no readme
+                mostraMenu();
                 break;
             case '4':
                 // remover uma entrada de ID/senha
+                mostraMenu();
                 break;
             case '5':
                 // inicializar BD
+                mostraMenu();
                 break;
-            default:
-                printf("Opção inválida!\n");
         }
     };
+}
+
+void app_main(void) {
+    sist_arquivos.start("/storage", 10);                  // Usa SA na Flash
+
+    wifi.accessPoint(AP_SSID,AP_CHANNEL,MAX_CONN);        // Cria um AccessPoint
+    mdns.start(NOME_MDNS);                                // Cria um mDNS para acesso usando nome ex: ping porta.local
+
+    webServer.addHandler("/*",     HTTP_GET, serve_estaticos);  // Serve arquivos estáticos
+    webServer.addHandler("/senha", HTTP_POST,rota_senha);       // Trata Rota 
+
+    webServer.start();                                    // Inicia servidor WEB
+
+    // task para mostrar o menu no console
+    xTaskCreate(menu_console_task, "menu_console_task", 4096, NULL, 5, NULL);
 
 }
 
