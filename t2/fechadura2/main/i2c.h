@@ -6,8 +6,8 @@
 
 class I2C {
     public:
-        uint8_t listaTodos(uint16_t posicao);
-        void registroUsuario();
+        Usuario listaTodos(uint16_t posicao);
+        void registroUsuario(Usuario usuario);
         void qntdUsuarios();
         void removerPorID(const char* id);
         void init(gpio_num_t pino_scl, gpio_num_t pino_sda);

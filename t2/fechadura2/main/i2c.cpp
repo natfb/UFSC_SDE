@@ -15,7 +15,7 @@ i2c_master_bus_config_t i2c_bus_config = {};
 uint16_t end = 0x50;
 i2c_device_config_t dev_cfg = {};
 
-uint8_t I2C::listaTodos(uint16_t posicao) {
+Usuario I2C::listaTodos(uint16_t posicao) {
     uint8_t resultado;
 	uint8_t v[2];
 	v[0] = (posicao >> 8) & 0xff;
@@ -24,7 +24,7 @@ uint8_t I2C::listaTodos(uint16_t posicao) {
 	return resultado;
 }
 
-void I2C::registroUsuario() {
+void I2C::registroUsuario(string usuario, string senha) {
     uint8_t data[32];
     memset(data, 0xFF, sizeof(data));
 

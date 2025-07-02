@@ -28,6 +28,9 @@
 #include "mdns2.h"
 #include "driver/ledc.h"
 #include "i2c.h"
+#include <iostream>
+
+using namespace std;
 
 #define AP_SSID      "PORTA_124"
 #define AP_CHANNEL   1
@@ -180,13 +183,19 @@ esp_err_t rota_senha(httpd_req_t *req) {
 
 extern "C" void app_main() ;
 
+struct Usuario {             // Structure declaration
+  string usuario;         // Member (int variable)
+  string senha;   // Member (string variable)
+} usuario;
+
+
 void mostraMenu() {
     printf("[1] Lista todas as IDs e senhas\n[2] Adiciona uma nova entrada (ID e Senha)\n[3] Mostra qtd de pessoas cadastradas\n[4] Remove uma entrada de ID/senha\n[5] Inicializa BD\n");
 
 }
 
 void menu_console_task(void *pvParameter) {
-    uint8_t vet[200];
+    Usuario vet[200];
     // menu com as opcoes
     mostraMenu();
     int input = 0;
@@ -198,21 +207,37 @@ void menu_console_task(void *pvParameter) {
             case '1':
                 // lee bytes
                 // tem que trocar esse x<100 por algo
-                for (int x=0;x<100;x++)
+                // int num_usuarios = i2c.numeroUsuarios();
+                int num_usuarios = 2;
+                for (int x = 1; x < num_usuarios + 1; x++)
                 {
                     vet[x]=i2c.listaTodos(x);
                 }
 
                 // Mostra bytes
-                for (int x=0;x<100;x++)
+                for (int x = 1; x < num_usuarios + 1; x++)
                 {
-                    printf("%d - Usuario e senha: %d\n", x, vet[x]);
+                    cout << "Usuario: " << vet[x].id_usuario << endl;
+                    cout << "Senha: " << vet[x].senha << endl;
                 }
 
                 mostraMenu();
                 break;
             case '2':
                 // adicionar nova entrada
+                string usuario, senha;
+                printf("Digite seu nome de usuário: ");
+                getline(cin, usuario);
+                printf("Digite sua senha: ");
+                getline(cin, senha);
+                
+                Usuario novo_usuario;
+
+                novo_usuario.id_usuario = usuario;
+                novo_usuario.senha = senha;
+
+                registroUsuario(usuario);
+
                 mostraMenu();
                 break;
             case '3':
@@ -227,7 +252,7 @@ void menu_console_task(void *pvParameter) {
                 mostraMenu();
                 break;
             case '5':
-                i2c.registroUsuario();
+                // i2c.registroUsuario();
                 mostraMenu();
                 break;
         }
