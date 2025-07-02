@@ -5,6 +5,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <unistd.h>
+#include <unistd.h>
+#include <cstring>
 // #include "driver/gpio.h"
 
 i2c_master_dev_handle_t dev_handle;
@@ -23,10 +25,59 @@ uint8_t I2C::listaTodos(uint16_t posicao) {
 }
 
 void I2C::registroUsuario() {
+    uint8_t data[32];
+    memset(data, 0xFF, sizeof(data));
+
+    for (int i = 0; i < 256; i++) {
+        uint16_t addr = i * 32;
+        uint8_t v[2 + 32];
+        v[0] = (addr >> 8) & 0xFF;
+        v[1] = addr & 0xFF;
+        memcpy(&v[2], data, 32);
+        i2c_master_transmit(dev_handle, v, sizeof(v), -1);
+        vTaskDelay(pdMS_TO_TICKS(5));  // pequeno delay entre gravações
+    }
+
+    printf("Banco de dados inicializado (tudo limpo).\n");
 }
 
 void I2C::qntdUsuarios() {
+    uint8_t buffer[32];
+    int count = 0;
 
+    for (int i = 0; i < 256; i++) {
+        uint16_t addr = i * 32;
+        uint8_t v[2] = { (uint8_t)(addr >> 8), (uint8_t)(addr & 0xFF) };
+        if (i2c_master_transmit_receive(dev_handle, v, 2, buffer, 1, -1) == ESP_OK) {
+            if (buffer[0] != 0xFF) count++;
+        }
+    }
+
+    printf("Quantidade de usuários cadastrados: %d\n", count);
+}
+
+void removerPorID(const char* id) {
+    uint8_t buffer[32];
+    char idBuffer[17];
+    idBuffer[16] = '\0';  // garantia de null terminator
+
+    for (int i = 0; i < 256; i++) {
+        uint16_t addr = i * 32;
+        uint8_t v[2] = { (uint8_t)(addr >> 8), (uint8_t)(addr & 0xFF) };
+        i2c_master_transmit_receive(dev_handle, v, 2, buffer, 32, -1);
+        strncpy(idBuffer, (char*)buffer, 16);
+        if (strcmp(idBuffer, id) == 0) {
+            memset(buffer, 0xFF, 32);
+            uint8_t w[34];
+            w[0] = v[0];
+            w[1] = v[1];
+            memcpy(&w[2], buffer, 32);
+            i2c_master_transmit(dev_handle, w, 34, -1);
+            printf("ID '%s' removido com sucesso.\n", id);
+            return;
+        }
+    }
+    printf("ID '%s' não encontrado.\n", id);
 }
 
 void I2C::init(gpio_num_t pino_scl, gpio_num_t pino_sda) {

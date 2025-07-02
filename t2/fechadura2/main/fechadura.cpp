@@ -26,7 +26,7 @@
 #include "wifi.h"
 #include "FS.h"
 #include "mdns2.h"
-
+#include "driver/ledc.h"
 #include "i2c.h"
 
 #define AP_SSID      "PORTA_124"
@@ -40,7 +40,36 @@ WIFI wifi;
 FS sist_arquivos;
 MDNS mdns;
 
+#define SERVO_GPIO 18  // pino servo
 
+void servo_init() {
+    ledc_timer_config_t timer = {
+        .speed_mode       = LEDC_HIGH_SPEED_MODE,
+        .duty_resolution  = LEDC_TIMER_13_BIT,
+        .timer_num        = LEDC_TIMER_0,
+        .freq_hz          = 50,
+        .clk_cfg          = LEDC_AUTO_CLK
+    };
+    ledc_timer_config(&timer);
+
+    ledc_channel_config_t channel = {
+        .gpio_num = SERVO_GPIO,
+        .speed_mode = LEDC_HIGH_SPEED_MODE,
+        .channel = LEDC_CHANNEL_0,
+        .intr_type = LEDC_INTR_DISABLE,
+        .timer_sel = LEDC_TIMER_0,
+        .duty = 0,
+        .hpoint = 0
+    };
+    ledc_channel_config(&channel);
+}
+
+void servo_set_angulo(int angulo) {
+    // Mapear ângulo de 0° a 180° para duty entre 163 e 490
+    uint32_t duty = (angulo * (490 - 163)) / 180 + 163;
+    ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, duty);
+    ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
+}
 
 static const char* get_content_type(const char* path) {
     if (strstr(path, ".html")) return "text/html";
@@ -125,6 +154,9 @@ esp_err_t rota_senha(httpd_req_t *req) {
 
         // envia msg de sucesso e abre a porta
         cJSON_AddStringToObject(resposta, "Status", "Sucesso");
+        servo_set_angulo(90);  // abrir porta
+        vTaskDelay(pdMS_TO_TICKS(3000));
+        servo_set_angulo(0);   // fechar porta
 
     }
     else
@@ -184,16 +216,18 @@ void menu_console_task(void *pvParameter) {
                 mostraMenu();
                 break;
             case '3':
-                // mostrar qtd de pessoas cadastradas
-                // tem que pegar do cabeçalho -> coloquei no readme
+                i2c.qntdUsuarios();
                 mostraMenu();
                 break;
             case '4':
-                // remover uma entrada de ID/senha
+                char id[17];
+                printf("Digite o ID a remover: ");
+                scanf("%16s", id);
+                //i2c.removerPorID(id);
                 mostraMenu();
                 break;
             case '5':
-                // inicializar BD
+                i2c.registroUsuario();
                 mostraMenu();
                 break;
         }
@@ -209,11 +243,12 @@ void app_main(void) {
     webServer.addHandler("/*",     HTTP_GET, serve_estaticos);  // Serve arquivos estáticos
     webServer.addHandler("/senha", HTTP_POST,rota_senha);       // Trata Rota 
 
-    webServer.start();                                    // Inicia servidor WEB
+    webServer.start();                                 // Inicia servidor WEB
 
     // task para mostrar o menu no console
     xTaskCreate(menu_console_task, "menu_console_task", 4096, NULL, 5, NULL);
 
+    servo_init();
 }
 
 
