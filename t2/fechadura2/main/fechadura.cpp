@@ -45,6 +45,20 @@ MDNS mdns;
 
 #define SERVO_GPIO 18  // pino servo
 
+// ----------- classe para i2c ------------------
+#include <stdint.h>
+#include "driver/gpio.h"
+
+class I2C {
+    public:
+        Usuario listaTodos(uint16_t posicao);
+        void registroUsuario(Usuario usuario);
+        void qntdUsuarios();
+        void removerPorID(const char* id);
+        void init(gpio_num_t pino_scl, gpio_num_t pino_sda);
+};
+
+
 void servo_init() {
     ledc_timer_config_t timer = {
         .speed_mode       = LEDC_HIGH_SPEED_MODE,
@@ -275,5 +289,8 @@ void app_main(void) {
 
     servo_init();
 }
+
+
+
 
 
