@@ -30,6 +30,9 @@
 #include "i2c.h"
 #include <iostream>
 
+#define PINO1 GPIO_NUM_22 
+#define PINO2 GPIO_NUM_23
+
 using namespace std;
 
 #define AP_SSID      "PORTA_124"
@@ -44,20 +47,6 @@ FS sist_arquivos;
 MDNS mdns;
 
 #define SERVO_GPIO 18  // pino servo
-
-// ----------- classe para i2c ------------------
-#include <stdint.h>
-#include "driver/gpio.h"
-
-class I2C {
-    public:
-        Usuario listaTodos(uint16_t posicao);
-        void registroUsuario(Usuario usuario);
-        void qntdUsuarios();
-        void removerPorID(const char* id);
-        void init(gpio_num_t pino_scl, gpio_num_t pino_sda);
-};
-
 
 void servo_init() {
     ledc_timer_config_t timer = {
@@ -205,7 +194,6 @@ struct Usuario {             // Structure declaration
 
 void mostraMenu() {
     printf("[1] Lista todas as IDs e senhas\n[2] Adiciona uma nova entrada (ID e Senha)\n[3] Mostra qtd de pessoas cadastradas\n[4] Remove uma entrada de ID/senha\n[5] Inicializa BD\n");
-
 }
 
 void menu_console_task(void *pvParameter) {
@@ -222,36 +210,29 @@ void menu_console_task(void *pvParameter) {
                 // lee bytes
                 // tem que trocar esse x<100 por algo
                 // int num_usuarios = i2c.numeroUsuarios();
-                int num_usuarios = 2;
-                for (int x = 1; x < num_usuarios + 1; x++)
-                {
-                    vet[x]=i2c.listaTodos(x);
-                }
+                //int num_usuarios = 2;
+                //for (int x = 1; x < num_usuarios + 1; x++)
+               // {
+                 //   vet[x]=i2c.listaTodos(x);
+                //}
 
                 // Mostra bytes
-                for (int x = 1; x < num_usuarios + 1; x++)
-                {
-                    cout << "Usuario: " << vet[x].id_usuario << endl;
-                    cout << "Senha: " << vet[x].senha << endl;
-                }
+                //for (int x = 1; x < num_usuarios + 1; x++)
+                //{
+                  //  cout << "Usuario: " << vet[x].id_usuario << endl;
+                   // cout << "Senha: " << vet[x].senha << endl;
+                //}
 
                 mostraMenu();
                 break;
             case '2':
-                // adicionar nova entrada
-                string usuario, senha;
-                printf("Digite seu nome de usuário: ");
-                getline(cin, usuario);
-                printf("Digite sua senha: ");
-                getline(cin, senha);
-                
-                Usuario novo_usuario;
-
-                novo_usuario.id_usuario = usuario;
-                novo_usuario.senha = senha;
-
-                registroUsuario(usuario);
-
+                char id_input[16];
+                char senha_input[16];
+                printf("Digite o ID do novo usuario: ");
+                scanf("%15s", id_input); // Limiting input to 15 chars to leave space for null terminator
+                printf("Digite a senha do novo usuario: ");
+                scanf("%15s", senha_input); // Limiting input to 15 chars
+                i2c.registroUsuario(id_input, senha_input); // Corrected call with arguments
                 mostraMenu();
                 break;
             case '3':
@@ -259,14 +240,14 @@ void menu_console_task(void *pvParameter) {
                 mostraMenu();
                 break;
             case '4':
-                char id[17];
+                char id[16];
                 printf("Digite o ID a remover: ");
-                scanf("%16s", id);
-                //i2c.removerPorID(id);
+                scanf("%15s", id);
+                i2c.removerPorID(id);
                 mostraMenu();
                 break;
             case '5':
-                // i2c.registroUsuario();
+                i2c.init(GPIO_NUM_22, GPIO_NUM_23);
                 mostraMenu();
                 break;
         }
