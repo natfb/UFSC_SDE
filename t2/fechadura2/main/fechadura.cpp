@@ -29,6 +29,7 @@
 #include "driver/ledc.h"
 #include "i2c.h"
 #include <iostream>
+#include "driver/uart.h"
 
 #define PINO1 GPIO_NUM_22 
 #define PINO2 GPIO_NUM_23
@@ -40,6 +41,9 @@ using namespace std;
 #define MAX_CONN     4
 
 #define NOME_MDNS "porta"   // ping porta.local
+#define UART_NUM UART_NUM_0
+#define BUF_SIZE 1024
+
 
 WEBSERVER webServer;
 WIFI wifi;
@@ -184,7 +188,7 @@ esp_err_t rota_senha(httpd_req_t *req) {
 }
 
 
-extern "C" void app_main();
+extern "C" void app_main() ;
 
 struct Usuario {             // Structure declaration
   string usuario;         // Member (int variable)
@@ -197,45 +201,55 @@ void mostraMenu() {
 }
 
 void menu_console_task(void *pvParameter) {
-    Usuario vet[200];
+    // Usuario vet[200];
     // menu com as opcoes
-    //mostraMenu();
+    mostraMenu();
     int input = 0;
 
+    char usuario[30], senha[30];
     while(1) {
-        input = getchar();
-        
-        switch(input) {
-            case '1':
+        printf("Digite a opção desejada: \n");
+        uint16_t user_input = leNumero();
+        printf("opcao digitada: %u\n", user_input);
+        int num_usuarios = 2;
+        int len;
+        switch(user_input) {
+            case 1:
                 // lee bytes
                 // tem que trocar esse x<100 por algo
                 // int num_usuarios = i2c.numeroUsuarios();
-                //int num_usuarios = 2;
-                //for (int x = 1; x < num_usuarios + 1; x++)
-               // {
-                 //   vet[x]=i2c.listaTodos(x);
-                //}
+                
+                for (int x = 1; x < num_usuarios + 1; x++)
+                {
+                    // vet[x]=i2c.listaTodos(x);
+                }
 
                 // Mostra bytes
-                //for (int x = 1; x < num_usuarios + 1; x++)
-                //{
-                  //  cout << "Usuario: " << vet[x].id_usuario << endl;
-                   // cout << "Senha: " << vet[x].senha << endl;
-                //}
+                for (int x = 1; x < num_usuarios + 1; x++)
+                {
+                    // cout << "Usuario: " << vet[x].id_usuario << endl;
+                    // cout << "Senha: " << vet[x].senha << endl;
+                }
 
                 mostraMenu();
                 break;
-            case '2':
-                char id_input[16];
-                char senha_input[16];
-                printf("Digite o ID do novo usuario: ");
-                scanf("%15s", id_input); // Limiting input to 15 chars to leave space for null terminator
-                printf("Digite a senha do novo usuario: ");
-                scanf("%15s", senha_input); // Limiting input to 15 chars
-                i2c.registroUsuario(id_input, senha_input); // Corrected call with arguments
+            case 2: 
+                
+                printf("Digite seu nome de usuário: \n");
+
+                len = leString(usuario, sizeof(usuario));
+
+                if (len > 0) {
+                    printf("vc Digitou seu nome de usuário: %c\n", usuario[0]);
+                }
+
+                printf("Digite sua senha: \n");
+
+                len = leString(senha, sizeof(senha));
+
                 mostraMenu();
                 break;
-            case '3':
+            case 3:
                 i2c.qntdUsuarios();
                 mostraMenu();
                 break;
@@ -251,6 +265,7 @@ void menu_console_task(void *pvParameter) {
                 mostraMenu();
                 break;
         }
+        vTaskDelay(pdMS_TO_TICKS(100));
     };
 }
 
@@ -281,14 +296,10 @@ void app_main(void) {
     i2c.registroUsuario(test_id, test_senha); // Chama diretamente a função de registro
 
     // task para mostrar o menu no console
-    //xTaskCreate(menu_console_task, "menu_console_task", 4096, NULL, 5, NULL);
-
-    while (1) {
-        vTaskDelay(pdMS_TO_TICKS(1000)); // Espera 1 segundo
-        // Outras lógicas de fundo podem ir aqui
-    }
+    xTaskCreate(menu_console_task, "menu_console_task", 4096, NULL, 5, NULL);
 
     servo_init();
+    servo_set_angulo(45);
 }
 
 

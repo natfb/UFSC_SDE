@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 #include "driver/gpio.h"
+#include <iostream>
+
+using namespace std;
 
 #define MAX_USUARIOS       100
 #define EEPROM_ADDR_BASE   0x0001
