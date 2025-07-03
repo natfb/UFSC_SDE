@@ -212,35 +212,66 @@ void LE_SERIAL() {
     ESP_ERROR_CHECK(uart_param_config(UART_NUM, &uart_config));
 }
 
-
-
-int leString(char *buf, int max_len) 
+// **Função leString CORRIGIDA**
+int leString(char *buf, int max_len)
 {
     int i = 0;
     uint8_t byte;
 
-    while (i < max_len - 1) {
-        // Lê 1 byte com um timeout de 20ms. NÃO use -1 (bloqueante)!
-        int len = uart_read_bytes(UART_NUM, &byte, 1, pdMS_TO_TICKS(20));
-        
-        if (len > 0) {
-            // Se recebeu Carriage Return (Enter), termina a leitura.
-            if (byte == '\r') {
-                break; 
+    // Garante que o buffer é limpo antes de começar a ler
+    memset(buf, 0, max_len);
+
+    while (true) { // Loop infinito, a quebra será interna
+        // Lê 1 byte com um timeout razoável. 20ms pode ser muito curto se a digitação for lenta.
+        // Vamos usar -1 (bloqueante) aqui para garantir que esperamos por entrada,
+        // ou um timeout maior para sistemas interativos.
+        // Para uma entrada de console, -1 é frequentemente aceitável se a task for dedicada a isso.
+        // Ou um timeout maior como 100ms.
+        int len_read = uart_read_bytes(UART_NUM, &byte, 1, portMAX_DELAY); // Espera indefinidamente por um byte
+
+        if (len_read > 0) {
+            // Depuração: ver o byte bruto recebido
+            // ESP_LOGI(TAG_UART, "Byte lido: 0x%02X ('%c')", byte, (char)byte);
+
+            // Tratamento de Enter (CR ou LF)
+            if (byte == '\r' || byte == '\n') {
+                if (i > 0 && buf[i-1] == '\r' && byte == '\n') { // Se já recebemos CR e agora LF (CRLF)
+                    // Ignora o LF se o anterior foi CR para evitar duplicidade de nova linha
+                    continue;
+                }
+                // Se foi apenas CR, ou apenas LF, ou CR seguido de LF (já tratado), saia
+                break;
             }
-            
-            // Se recebeu outro caractere, ecoa de volta e armazena.
-            uart_write_bytes(UART_NUM, (const char *)&byte, 1); // Ecoa o caractere
-            buf[i++] = byte;
+
+            // Tratamento de Backspace (ASCII 0x08) ou Delete (ASCII 0x7F)
+            if (byte == 0x08 || byte == 0x7F) {
+                if (i > 0) {
+                    i--; // Move o cursor de escrita para trás
+                    // Envia caracteres para apagar no terminal: Backspace, espaço, Backspace
+                    uart_write_bytes(UART_NUM, "\b \b", 3);
+                }
+                continue; // Não armazena o caractere de backspace/delete
+            }
+
+            // Se for um caractere imprimível e há espaço no buffer
+            if (i < max_len - 1) { // -1 para deixar espaço para o terminador nulo
+                uart_write_bytes(UART_NUM, (const char *)&byte, 1); // Ecoa o caractere
+                buf[i++] = byte;
+            } else {
+                // Buffer cheio, mas continua ecoando para o usuário saber que está digitando
+                uart_write_bytes(UART_NUM, (const char *)&byte, 1);
+            }
         }
-        // Se len == 0, o loop continua (timeout), permitindo que outras tarefas rodem.
+        // Se len_read == 0 e timeout não é portMAX_DELAY, o loop continua
     }
 
-    // Envia um New Line para o terminal e finaliza a string.
-    byte = '\n';
-    uart_write_bytes(UART_NUM, (const char *)&byte, 1);
-    buf[i] = '\0'; // Adiciona o terminador nulo para formar uma string C válida
-    return i; 
+    // Finaliza a string com terminador nulo
+    buf[i] = '\0';
+
+    // Envia um New Line para o terminal após o Enter do usuário
+    uart_write_bytes(UART_NUM, "\r\n", 2); // Envia CRLF para compatibilidade com a maioria dos terminais
+
+    return i; // Retorna o número de caracteres lidos (excluindo o terminador nulo)
 }
 
 uint16_t input;
@@ -261,6 +292,9 @@ void menu_console_task(void *pvParameter) {
     // Usuario vet[200];
     // menu com as opcoes
     mostraMenu();
+        // Ajuste o tamanho desses buffers para corresponder ao RegistroUsuario + 1 para o null terminator
+    char usuario_id[16]; // id[16] no struct RegistroUsuario significa 15 chars + null
+    char senha_val[16];  // senha[16] no struct RegistroUsuario significa 15 chars + null
     int input = 0;
 
     char usuario[30], senha[30];
@@ -291,20 +325,25 @@ void menu_console_task(void *pvParameter) {
                 mostraMenu();
                 break;
             case 2: 
-                
-                printf("Digite seu nome de usuário: \n");
-
-                len = leString(usuario, sizeof(usuario));
-
+                printf("Digite seu nome de usuario (max 15 chars): \n");
+                // Passe o tamanho correto do buffer: sizeof(usuario_id) que é 16
+                len = leString(usuario_id, sizeof(usuario_id));
                 if (len > 0) {
-                    printf("Você Digitou seu nome de usuário: %c\n", usuario[0]);
+                    printf("Voce Digitou seu nome de usuario: %s\n", usuario_id);
+                } else {
+                    printf("Nenhum nome de usuario digitado.\n");
                 }
 
-                printf("Digite sua senha: \n");
+                printf("Digite sua senha (max 15 chars): \n");
+                // Passe o tamanho correto do buffer: sizeof(senha_val) que é 16
+                len = leString(senha_val, sizeof(senha_val));
+                if (len > 0) {
+                     printf("Voce Digitou sua senha: %s\n", senha_val);
+                } else {
+                    printf("Nenhuma senha digitada.\n");
+                }
 
-                len = leString(senha, sizeof(senha));
-
-                i2c.registroUsuario(usuario, senha);
+                i2c.registroUsuario(usuario_id, senha_val);
                 mostraMenu();
                 break;
             case 3:
@@ -317,7 +356,7 @@ void menu_console_task(void *pvParameter) {
                 len = leString(usuario, sizeof(usuario));
 
                 if (len > 0) {
-                    printf("Você Digitou o nome de usuário: %c\n", usuario[0]);
+                    printf("Você Digitou o nome de usuário: %s\n", usuario);
                 }
                 i2c.removerPorID(usuario);
                 mostraMenu();
