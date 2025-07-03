@@ -297,24 +297,29 @@ void menu_console_task(void *pvParameter) {
                 len = leString(usuario, sizeof(usuario));
 
                 if (len > 0) {
-                    printf("vc Digitou seu nome de usuário: %c\n", usuario[0]);
+                    printf("Você Digitou seu nome de usuário: %c\n", usuario[0]);
                 }
 
                 printf("Digite sua senha: \n");
 
                 len = leString(senha, sizeof(senha));
 
+                i2c.registroUsuario(usuario, senha);
                 mostraMenu();
                 break;
             case 3:
                 i2c.qntdUsuarios();
                 mostraMenu();
                 break;
-            case '4':
-                char id[16];
-                // printf("Digite o ID a remover: ");
-                // scanf("%15s", id);
-                i2c.removerPorID(id);
+            case 4:
+                printf("Digite o usuário a remover: \n");
+
+                len = leString(usuario, sizeof(usuario));
+
+                if (len > 0) {
+                    printf("Você Digitou o nome de usuário: %c\n", usuario[0]);
+                }
+                i2c.removerPorID(usuario);
                 mostraMenu();
                 break;
             case '5':

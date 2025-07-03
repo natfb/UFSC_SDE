@@ -113,7 +113,6 @@ void I2C::init(gpio_num_t pino_scl, gpio_num_t pino_sda) {
 	ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_cfg, &dev_handle));
 }
 
-
 I2C i2c;
 
 
