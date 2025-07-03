@@ -306,22 +306,7 @@ void menu_console_task(void *pvParameter) {
         int len;
         switch(user_input) {
             case 1:
-                // lee bytes
-                // tem que trocar esse x<100 por algo
-                // int num_usuarios = i2c.numeroUsuarios();
-                
-                for (int x = 1; x < num_usuarios + 1; x++)
-                {
-                    // vet[x]=i2c.listaTodos(x);
-                }
-
-                // Mostra bytes
-                for (int x = 1; x < num_usuarios + 1; x++)
-                {
-                    // cout << "Usuario: " << vet[x].id_usuario << endl;
-                    // cout << "Senha: " << vet[x].senha << endl;
-                }
-
+                i2c.listaTodos();
                 mostraMenu();
                 break;
             case 2: 
@@ -361,8 +346,8 @@ void menu_console_task(void *pvParameter) {
                 i2c.removerPorID(usuario);
                 mostraMenu();
                 break;
-            case '5':
-                i2c.init(GPIO_NUM_22, GPIO_NUM_23);
+            case 5:
+                i2c.init(PINO1, PINO2);
                 mostraMenu();
                 break;
         }

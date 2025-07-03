@@ -38,6 +38,12 @@ void I2C::listaTodos() {
         esp_err_t ret = i2c_master_transmit_receive(dev_handle, addr_bytes, sizeof(addr_bytes), 
                                                     (uint8_t*)&usuario_lido, sizeof(usuario_lido), -1);
 
+        if (ret != ESP_OK) {
+            printf("Erro ao ler cabeçalho da EEPROM: %s\n", esp_err_to_name(ret));
+        } else {
+            printf("Cabeçalho lido: qtd = %u, max = %u\n", cabec.qtd, cabec.max);
+        }
+
         if (ret == ESP_OK) {
             usuario_lido.id[sizeof(usuario_lido.id) - 1] = '\0';
             usuario_lido.senha[sizeof(usuario_lido.senha) - 1] = '\0';
@@ -130,7 +136,7 @@ void I2C::init(gpio_num_t pino_scl, gpio_num_t pino_sda) {
 	dev_cfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
 	dev_cfg.device_address = 0x50;
 	dev_cfg.scl_speed_hz = 100000;
-	dev_cfg.scl_wait_us=0;
+	dev_cfg.scl_wait_us = 0;
 	dev_cfg.flags.disable_ack_check=1;
 
 	ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_cfg, &dev_handle));
@@ -139,6 +145,67 @@ void I2C::init(gpio_num_t pino_scl, gpio_num_t pino_sda) {
     uint8_t addr_cabec[] = {0x00, 0x00};
     esp_err_t ret = i2c_master_transmit_receive(dev_handle, addr_cabec, sizeof(addr_cabec), 
                                             (uint8_t*)&cabec, sizeof(cabec), -1);
+}
+
+void I2C::init2(gpio_num_t pino_scl, gpio_num_t pino_sda) {
+    dev_handle = nullptr;
+
+    i2c_bus_config.clk_source = I2C_CLK_SRC_DEFAULT;
+    i2c_bus_config.flags.enable_internal_pullup = true;
+    i2c_bus_config.i2c_port = 0;
+    i2c_bus_config.scl_io_num = pino_scl;
+    i2c_bus_config.sda_io_num = pino_sda;
+    i2c_bus_config.glitch_ignore_cnt = 7;
+
+    esp_err_t ret;
+
+    ret = i2c_new_master_bus(&i2c_bus_config, &bus_handle);
+    if (ret != ESP_OK) {
+        printf("Erro ao criar o barramento I2C: %s\n", esp_err_to_name(ret));
+        return;
+    }
+
+    dev_cfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
+    dev_cfg.device_address = 0x50;
+    dev_cfg.scl_speed_hz = 100000;
+    dev_cfg.scl_wait_us = 0;
+    dev_cfg.flags.disable_ack_check = 1;
+
+    ret = i2c_master_bus_add_device(bus_handle, &dev_cfg, &dev_handle);
+    if (ret != ESP_OK) {
+        printf("Erro ao adicionar dispositivo I2C: %s\n", esp_err_to_name(ret));
+        return;
+    }
+
+    if (dev_handle == nullptr) {
+        printf("ERRO FATAL: dev_handle está NULL! Falha na criação do dispositivo I2C.\n");
+        return;
+    }
+
+    // Leitura do cabeçalho da EEPROM
+    uint8_t addr_cabec[] = {0x00, 0x00};
+    ret = i2c_master_transmit_receive(dev_handle, addr_cabec, sizeof(addr_cabec), 
+                                      (uint8_t*)&cabec, sizeof(cabec), -1);
+    if (ret != ESP_OK) {
+        printf("Erro ao ler cabeçalho da EEPROM: %s\n", esp_err_to_name(ret));
+        // Inicializa manualmente
+        cabec.qtd = 0;
+        cabec.max = MAX_USUARIOS;
+
+        uint8_t cabec_pacote[2 + sizeof(cabec)];
+        cabec_pacote[0] = 0x00;
+        cabec_pacote[1] = 0x00;
+        memcpy(&cabec_pacote[2], &cabec, sizeof(cabec));
+
+        ret = i2c_master_transmit(dev_handle, cabec_pacote, sizeof(cabec_pacote), -1);
+        if (ret == ESP_OK) {
+            printf("Cabeçalho inicializado com sucesso: qtd = %u, max = %u\n", cabec.qtd, cabec.max);
+        } else {
+            printf("Erro ao inicializar cabeçalho: %s\n", esp_err_to_name(ret));
+        }
+    } else {
+        printf("Cabeçalho lido com sucesso: qtd = %u, max = %u\n", cabec.qtd, cabec.max);
+    }
 }
 
 I2C i2c;
