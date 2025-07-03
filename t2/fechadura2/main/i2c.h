@@ -12,15 +12,22 @@ using namespace std;
 #define EEPROM_TAM_REG     32
 
 typedef struct {
+    uint16_t qtd;
+    uint16_t max;
+} tipo_cabecalho;
+
+typedef struct {
     char id[16];
     char senha[16];
 } RegistroUsuario;
 
 class I2C {
+    private:
+        tipo_cabecalho cabec;
     public:
-        uint8_t listaTodos(uint16_t posicao);
+        void listaTodos();
         void registroUsuario(const char* id, const char* senha);
-        void qntdUsuarios();
+        uint16_t qntdUsuarios();
         void removerPorID(const char* id);
         void init(gpio_num_t pino_scl, gpio_num_t pino_sda);
 };
