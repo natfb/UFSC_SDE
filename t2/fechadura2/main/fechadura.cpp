@@ -184,7 +184,7 @@ esp_err_t rota_senha(httpd_req_t *req) {
 }
 
 
-extern "C" void app_main() ;
+extern "C" void app_main();
 
 struct Usuario {             // Structure declaration
   string usuario;         // Member (int variable)
@@ -199,7 +199,7 @@ void mostraMenu() {
 void menu_console_task(void *pvParameter) {
     Usuario vet[200];
     // menu com as opcoes
-    mostraMenu();
+    //mostraMenu();
     int input = 0;
 
     while(1) {
@@ -265,8 +265,28 @@ void app_main(void) {
 
     webServer.start();                                 // Inicia servidor WEB
 
+    // Inicializa o I2C primeiro, pois registroUsuario precisa dele
+    printf("Inicializando I2C...\n");
+    i2c.init(PINO1, PINO2); // Use os pinos definidos no seu projeto
+    printf("I2C inicializado.\n");
+
+    // --- Início do teste do registro de usuário ---
+    printf("\n--- Testando registro de usuario ---\n");
+
+    // Defina os dados de teste para ID e senha
+    const char* test_id = "teste_id_001";
+    const char* test_senha = "senha_secreta";
+
+    printf("Tentando registrar usuario com ID: '%s', Senha: '%s'\n", test_id, test_senha);
+    i2c.registroUsuario(test_id, test_senha); // Chama diretamente a função de registro
+
     // task para mostrar o menu no console
-    xTaskCreate(menu_console_task, "menu_console_task", 4096, NULL, 5, NULL);
+    //xTaskCreate(menu_console_task, "menu_console_task", 4096, NULL, 5, NULL);
+
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(1000)); // Espera 1 segundo
+        // Outras lógicas de fundo podem ir aqui
+    }
 
     servo_init();
 }
