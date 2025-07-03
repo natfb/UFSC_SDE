@@ -31,6 +31,9 @@
 #include <iostream>
 #include "driver/uart.h"
 
+#define PINO1 GPIO_NUM_22 
+#define PINO2 GPIO_NUM_23
+
 using namespace std;
 
 #define AP_SSID      "PORTA_124"
@@ -48,7 +51,6 @@ FS sist_arquivos;
 MDNS mdns;
 
 #define SERVO_GPIO 18  // pino servo
-
 
 void servo_init() {
     ledc_timer_config_t timer = {
@@ -248,7 +250,6 @@ uint16_t leNumero(void)
 
 void mostraMenu() {
     printf("[1] Lista todas as IDs e senhas\n[2] Adiciona uma nova entrada (ID e Senha)\n[3] Mostra qtd de pessoas cadastradas\n[4] Remove uma entrada de ID/senha\n[5] Inicializa BD\n");
-
 }
 
 void menu_console_task(void *pvParameter) {
@@ -303,15 +304,15 @@ void menu_console_task(void *pvParameter) {
                 i2c.qntdUsuarios();
                 mostraMenu();
                 break;
-            case 4:
-                char id[17];
+            case '4':
+                char id[16];
                 printf("Digite o ID a remover: ");
-                scanf("%16s", id);
-                //i2c.removerPorID(id);
+                scanf("%15s", id);
+                i2c.removerPorID(id);
                 mostraMenu();
                 break;
-            case 5:
-                // i2c.registroUsuario();
+            case '5':
+                i2c.init(GPIO_NUM_22, GPIO_NUM_23);
                 mostraMenu();
                 break;
         }

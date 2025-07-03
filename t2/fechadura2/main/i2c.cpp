@@ -15,17 +15,45 @@ i2c_master_bus_config_t i2c_bus_config = {};
 uint16_t end = 0x50;
 i2c_device_config_t dev_cfg = {};
 
-// Usuario I2C::listaTodos(uint16_t posicao) {
-//     uint8_t resultado;
-// 	uint8_t v[2];
-// 	v[0] = (posicao >> 8) & 0xff;
-// 	v[1] = (posicao & 0xff);
-// 	i2c_master_transmit_receive(dev_handle, v, 2, &resultado, 1, -1);
-// 	return resultado;
-// }
+uint8_t I2C::listaTodos(uint16_t posicao) {
+    uint8_t resultado;
+	uint8_t v[2];
+	v[0] = (posicao >> 8) & 0xff;
+	v[1] = (posicao & 0xff);
+	i2c_master_transmit_receive(dev_handle, v, 2, &resultado, 1, -1);
+	return resultado;
+}
 
-void I2C::registroUsuario(string usuario) {
-   
+void I2C::registroUsuario(const char* id, const char* senha) {
+    // Lê número de usuários
+
+    uint8_t qtd;
+    uint8_t address_bytes[] = {0x00, 0x00}; // Declare a named array
+    i2c_master_transmit_receive(dev_handle, address_bytes, sizeof(address_bytes), &qtd, 1, -1);
+    if (qtd >= MAX_USUARIOS) {
+        printf("Erro: banco cheio!\n");
+        return;
+    }
+
+    RegistroUsuario novo;
+    memset(&novo, 0, sizeof(novo));
+    strncpy(novo.id, id, 15);
+    strncpy(novo.senha, senha, 15);
+
+    uint16_t addr = EEPROM_ADDR_BASE + qtd * EEPROM_TAM_REG;
+    uint8_t pacote[2 + sizeof(novo)];
+    pacote[0] = (addr >> 8) & 0xFF;
+    pacote[1] = addr & 0xFF;
+    memcpy(&pacote[2], &novo, sizeof(novo));
+
+    i2c_master_transmit(dev_handle, pacote, sizeof(pacote), -1);
+    vTaskDelay(pdMS_TO_TICKS(5));
+
+    // Atualiza cabeçalho
+    uint8_t atualiza[3] = {0x00, 0x00, static_cast<uint8_t>(qtd + 1)};
+    i2c_master_transmit(dev_handle, atualiza, 3, -1);
+
+    printf("Usuário adicionado com sucesso.\n");
 }
 
 void I2C::qntdUsuarios() {
@@ -43,7 +71,7 @@ void I2C::qntdUsuarios() {
     printf("Quantidade de usuários cadastrados: %d\n", count);
 }
 
-void removerPorID(const char* id) {
+void I2C::removerPorID(const char* id) {
     uint8_t buffer[32];
     char idBuffer[17];
     idBuffer[16] = '\0';  // garantia de null terminator
