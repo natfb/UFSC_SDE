@@ -195,6 +195,63 @@ struct Usuario {             // Structure declaration
   string senha;   // Member (string variable)
 } usuario;
 
+static const char *TAG = "LE_SERIAL";
+
+void LE_SERIAL() {
+   const uart_config_t uart_config = {
+        .baud_rate = 115200,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .source_clk = UART_SCLK_DEFAULT,
+    };
+
+    // Instala o driver da UART, alocando buffers para RX e TX.
+    ESP_ERROR_CHECK(uart_driver_install(UART_NUM, BUF_SIZE * 2, BUF_SIZE * 2, 0, NULL, 0));
+    ESP_ERROR_CHECK(uart_param_config(UART_NUM, &uart_config));
+}
+
+
+
+int leString(char *buf, int max_len) 
+{
+    int i = 0;
+    uint8_t byte;
+
+    while (i < max_len - 1) {
+        // Lê 1 byte com um timeout de 20ms. NÃO use -1 (bloqueante)!
+        int len = uart_read_bytes(UART_NUM, &byte, 1, pdMS_TO_TICKS(20));
+        
+        if (len > 0) {
+            // Se recebeu Carriage Return (Enter), termina a leitura.
+            if (byte == '\r') {
+                break; 
+            }
+            
+            // Se recebeu outro caractere, ecoa de volta e armazena.
+            uart_write_bytes(UART_NUM, (const char *)&byte, 1); // Ecoa o caractere
+            buf[i++] = byte;
+        }
+        // Se len == 0, o loop continua (timeout), permitindo que outras tarefas rodem.
+    }
+
+    // Envia um New Line para o terminal e finaliza a string.
+    byte = '\n';
+    uart_write_bytes(UART_NUM, (const char *)&byte, 1);
+    buf[i] = '\0'; // Adiciona o terminador nulo para formar uma string C válida
+    return i; 
+}
+
+uint16_t input;
+
+uint16_t leNumero(void)
+{
+	char buf[11];
+	leString(buf,10);
+	sscanf(buf, "%hd",&input);
+	return input;
+}
 
 void mostraMenu() {
     printf("[1] Lista todas as IDs e senhas\n[2] Adiciona uma nova entrada (ID e Senha)\n[3] Mostra qtd de pessoas cadastradas\n[4] Remove uma entrada de ID/senha\n[5] Inicializa BD\n");
@@ -255,8 +312,8 @@ void menu_console_task(void *pvParameter) {
                 break;
             case '4':
                 char id[16];
-                printf("Digite o ID a remover: ");
-                scanf("%15s", id);
+                // printf("Digite o ID a remover: ");
+                // scanf("%15s", id);
                 i2c.removerPorID(id);
                 mostraMenu();
                 break;
@@ -281,21 +338,22 @@ void app_main(void) {
     webServer.start();                                 // Inicia servidor WEB
 
     // Inicializa o I2C primeiro, pois registroUsuario precisa dele
-    printf("Inicializando I2C...\n");
-    i2c.init(PINO1, PINO2); // Use os pinos definidos no seu projeto
-    printf("I2C inicializado.\n");
+    // printf("Inicializando I2C...\n");
+    // i2c.init(PINO1, PINO2); // Use os pinos definidos no seu projeto
+    // printf("I2C inicializado.\n");
 
     // --- Início do teste do registro de usuário ---
-    printf("\n--- Testando registro de usuario ---\n");
+    // printf("\n--- Testando registro de usuario ---\n");
 
-    // Defina os dados de teste para ID e senha
-    const char* test_id = "teste_id_001";
-    const char* test_senha = "senha_secreta";
+    // // Defina os dados de teste para ID e senha
+    // const char* test_id = "teste_id_001";
+    // const char* test_senha = "senha_secreta";
 
-    printf("Tentando registrar usuario com ID: '%s', Senha: '%s'\n", test_id, test_senha);
-    i2c.registroUsuario(test_id, test_senha); // Chama diretamente a função de registro
+    // printf("Tentando registrar usuario com ID: '%s', Senha: '%s'\n", test_id, test_senha);
+    // i2c.registroUsuario(test_id, test_senha); // Chama diretamente a função de registro
 
     // task para mostrar o menu no console
+    LE_SERIAL();
     xTaskCreate(menu_console_task, "menu_console_task", 4096, NULL, 5, NULL);
 
     servo_init();
