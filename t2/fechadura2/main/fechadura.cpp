@@ -29,6 +29,7 @@
 #include "driver/ledc.h"
 #include "i2c.h"
 #include <iostream>
+#include "driver/uart.h"
 
 using namespace std;
 
@@ -37,6 +38,9 @@ using namespace std;
 #define MAX_CONN     4
 
 #define NOME_MDNS "porta"   // ping porta.local
+#define UART_NUM UART_NUM_0
+#define BUF_SIZE 1024
+
 
 WEBSERVER webServer;
 WIFI wifi;
@@ -44,19 +48,6 @@ FS sist_arquivos;
 MDNS mdns;
 
 #define SERVO_GPIO 18  // pino servo
-
-// ----------- classe para i2c ------------------
-#include <stdint.h>
-#include "driver/gpio.h"
-
-class I2C {
-    public:
-        Usuario listaTodos(uint16_t posicao);
-        void registroUsuario(Usuario usuario);
-        void qntdUsuarios();
-        void removerPorID(const char* id);
-        void init(gpio_num_t pino_scl, gpio_num_t pino_sda);
-};
 
 
 void servo_init() {
@@ -195,13 +186,65 @@ esp_err_t rota_senha(httpd_req_t *req) {
 }
 
 
-extern "C" void app_main() ;
+extern "C" void app_main();
+// LE_SERIAL portaSerial = LE_SERIAL();
+static const char *TAG = "LE_SERIAL";
 
-struct Usuario {             // Structure declaration
-  string usuario;         // Member (int variable)
-  string senha;   // Member (string variable)
-} usuario;
+void LE_SERIAL() {
+   const uart_config_t uart_config = {
+        .baud_rate = 115200,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .source_clk = UART_SCLK_DEFAULT,
+    };
 
+    // Instala o driver da UART, alocando buffers para RX e TX.
+    ESP_ERROR_CHECK(uart_driver_install(UART_NUM, BUF_SIZE * 2, BUF_SIZE * 2, 0, NULL, 0));
+    ESP_ERROR_CHECK(uart_param_config(UART_NUM, &uart_config));
+}
+
+
+
+int leString(char *buf, int max_len) 
+{
+    int i = 0;
+    uint8_t byte;
+
+    while (i < max_len - 1) {
+        // Lê 1 byte com um timeout de 20ms. NÃO use -1 (bloqueante)!
+        int len = uart_read_bytes(UART_NUM, &byte, 1, pdMS_TO_TICKS(20));
+        
+        if (len > 0) {
+            // Se recebeu Carriage Return (Enter), termina a leitura.
+            if (byte == '\r') {
+                break; 
+            }
+            
+            // Se recebeu outro caractere, ecoa de volta e armazena.
+            uart_write_bytes(UART_NUM, (const char *)&byte, 1); // Ecoa o caractere
+            buf[i++] = byte;
+        }
+        // Se len == 0, o loop continua (timeout), permitindo que outras tarefas rodem.
+    }
+
+    // Envia um New Line para o terminal e finaliza a string.
+    byte = '\n';
+    uart_write_bytes(UART_NUM, (const char *)&byte, 1);
+    buf[i] = '\0'; // Adiciona o terminador nulo para formar uma string C válida
+    return i; 
+}
+
+uint16_t input;
+
+uint16_t leNumero(void)
+{
+	char buf[11];
+	leString(buf,10);
+	sscanf(buf, "%hd",&input);
+	return input;
+}
 
 void mostraMenu() {
     printf("[1] Lista todas as IDs e senhas\n[2] Adiciona uma nova entrada (ID e Senha)\n[3] Mostra qtd de pessoas cadastradas\n[4] Remove uma entrada de ID/senha\n[5] Inicializa BD\n");
@@ -209,67 +252,70 @@ void mostraMenu() {
 }
 
 void menu_console_task(void *pvParameter) {
-    Usuario vet[200];
+    // Usuario vet[200];
     // menu com as opcoes
     mostraMenu();
-    int input = 0;
 
+    char usuario[30], senha[30];
     while(1) {
-        input = getchar();
-        
-        switch(input) {
-            case '1':
+        printf("Digite a opção desejada: \n");
+        uint16_t user_input = leNumero();
+        printf("opcao digitada: %u\n", user_input);
+        int num_usuarios = 2;
+        int len;
+        switch(user_input) {
+            case 1:
                 // lee bytes
                 // tem que trocar esse x<100 por algo
                 // int num_usuarios = i2c.numeroUsuarios();
-                int num_usuarios = 2;
+                
                 for (int x = 1; x < num_usuarios + 1; x++)
                 {
-                    vet[x]=i2c.listaTodos(x);
+                    // vet[x]=i2c.listaTodos(x);
                 }
 
                 // Mostra bytes
                 for (int x = 1; x < num_usuarios + 1; x++)
                 {
-                    cout << "Usuario: " << vet[x].id_usuario << endl;
-                    cout << "Senha: " << vet[x].senha << endl;
+                    // cout << "Usuario: " << vet[x].id_usuario << endl;
+                    // cout << "Senha: " << vet[x].senha << endl;
                 }
 
                 mostraMenu();
                 break;
-            case '2':
-                // adicionar nova entrada
-                string usuario, senha;
-                printf("Digite seu nome de usuário: ");
-                getline(cin, usuario);
-                printf("Digite sua senha: ");
-                getline(cin, senha);
+            case 2: 
                 
-                Usuario novo_usuario;
+                printf("Digite seu nome de usuário: \n");
 
-                novo_usuario.id_usuario = usuario;
-                novo_usuario.senha = senha;
+                len = leString(usuario, sizeof(usuario));
 
-                registroUsuario(usuario);
+                if (len > 0) {
+                    printf("vc Digitou seu nome de usuário: %c\n", usuario[0]);
+                }
+
+                printf("Digite sua senha: \n");
+
+                len = leString(senha, sizeof(senha));
 
                 mostraMenu();
                 break;
-            case '3':
+            case 3:
                 i2c.qntdUsuarios();
                 mostraMenu();
                 break;
-            case '4':
+            case 4:
                 char id[17];
                 printf("Digite o ID a remover: ");
                 scanf("%16s", id);
                 //i2c.removerPorID(id);
                 mostraMenu();
                 break;
-            case '5':
+            case 5:
                 // i2c.registroUsuario();
                 mostraMenu();
                 break;
         }
+        vTaskDelay(pdMS_TO_TICKS(100));
     };
 }
 
@@ -285,9 +331,11 @@ void app_main(void) {
     webServer.start();                                 // Inicia servidor WEB
 
     // task para mostrar o menu no console
+    LE_SERIAL();
     xTaskCreate(menu_console_task, "menu_console_task", 4096, NULL, 5, NULL);
 
     servo_init();
+    servo_set_angulo(45);
 }
 
 

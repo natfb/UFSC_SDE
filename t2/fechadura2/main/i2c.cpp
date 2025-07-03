@@ -15,30 +15,17 @@ i2c_master_bus_config_t i2c_bus_config = {};
 uint16_t end = 0x50;
 i2c_device_config_t dev_cfg = {};
 
-Usuario I2C::listaTodos(uint16_t posicao) {
-    uint8_t resultado;
-	uint8_t v[2];
-	v[0] = (posicao >> 8) & 0xff;
-	v[1] = (posicao & 0xff);
-	i2c_master_transmit_receive(dev_handle, v, 2, &resultado, 1, -1);
-	return resultado;
-}
+// Usuario I2C::listaTodos(uint16_t posicao) {
+//     uint8_t resultado;
+// 	uint8_t v[2];
+// 	v[0] = (posicao >> 8) & 0xff;
+// 	v[1] = (posicao & 0xff);
+// 	i2c_master_transmit_receive(dev_handle, v, 2, &resultado, 1, -1);
+// 	return resultado;
+// }
 
-void I2C::registroUsuario(string usuario, string senha) {
-    uint8_t data[32];
-    memset(data, 0xFF, sizeof(data));
-
-    for (int i = 0; i < 256; i++) {
-        uint16_t addr = i * 32;
-        uint8_t v[2 + 32];
-        v[0] = (addr >> 8) & 0xFF;
-        v[1] = addr & 0xFF;
-        memcpy(&v[2], data, 32);
-        i2c_master_transmit(dev_handle, v, sizeof(v), -1);
-        vTaskDelay(pdMS_TO_TICKS(5));  // pequeno delay entre gravações
-    }
-
-    printf("Banco de dados inicializado (tudo limpo).\n");
+void I2C::registroUsuario(string usuario) {
+   
 }
 
 void I2C::qntdUsuarios() {
