@@ -415,6 +415,41 @@ void I2C::listaTodos2() {
     }
 }
 
+bool I2C::verificarUsuario(const char* id_a_verificar, const char* senha_a_verificar) {
+    uint16_t qntdUsers = this->qntdUsuarios();
+
+    // O laço 'for' continua sendo o coração da busca
+    for (uint16_t i = 0; i < qntdUsers; i++) {
+        uint16_t addr_registro = EEPROM_ADDR_BASE + (i * EEPROM_TAM_REG);
+        uint8_t addr_bytes[2] = { (uint8_t)(addr_registro >> 8), (uint8_t)(addr_registro & 0xFF) };
+        RegistroUsuario usuario_lido;
+        memset(&usuario_lido, 0, sizeof(usuario_lido));
+
+        esp_err_t ret = i2c_master_transmit_receive(dev_handle, addr_bytes, sizeof(addr_bytes),
+                                                    (uint8_t*)&usuario_lido, sizeof(usuario_lido), -1);
+
+        if (ret == ESP_OK) {
+            usuario_lido.id[sizeof(usuario_lido.id) - 1] = '\0';
+            usuario_lido.senha[sizeof(usuario_lido.senha) - 1] = '\0';
+
+            printf("Debug: Comparando ID_Web['%s'] com ID_Mem['%s']\n", id_a_verificar, usuario_lido.id);
+            printf("Debug: Comparando Senha_Web['%s'] com Senha_Mem['%s']\n", senha_a_verificar, usuario_lido.senha);
+            // A comparação usa os parâmetros recebidos pela função
+            if ((strcmp(id_a_verificar, usuario_lido.id) == 0) &&
+                (strcmp(senha_a_verificar, usuario_lido.senha) == 0))
+            {
+                // Encontrou! A função retorna 'true' e para imediatamente.
+                return true;
+            }
+        } else {
+            printf("Falha ao ler usuário na posição %u durante a verificação.\n", i);
+        }
+    }
+
+    // Se o laço 'for' terminar e nunca retornou 'true', significa que não encontrou.
+    // Então, retornamos 'false'.
+    return false;
+}
 
 
 I2C i2c;

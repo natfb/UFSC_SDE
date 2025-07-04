@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "driver/gpio.h"
 #include <iostream>
+#include "driver/i2c_master.h"
 
 using namespace std;
 
@@ -35,6 +36,7 @@ class I2C {
         void removerPorID2(const char* id);
         void init(gpio_num_t pino_scl, gpio_num_t pino_sda);
         void init2(gpio_num_t pino_scl, gpio_num_t pino_sda);
+        bool verificarUsuario(const char* id_a_verificar, const char* senha_a_verificar);
 };
 
 extern I2C i2c;

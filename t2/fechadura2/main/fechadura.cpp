@@ -76,7 +76,28 @@ void servo_init() {
 
 void servo_set_angulo(int angulo) {
     // Mapear ângulo de 0° a 180° para duty entre 163 e 490
-    uint32_t duty = (angulo * (490 - 163)) / 180 + 163;
+    // uint32_t duty = (angulo * (490 - 163)) / 180 + 163;
+    // ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, duty);
+    // ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
+
+    // 1. (Opcional, mas recomendado) Garante que o ângulo está no limite de -90 a 90
+    if (angulo < -90) {
+        angulo = -90;
+    }
+    if (angulo > 90) {
+        angulo = 90;
+    }
+
+    // 2. Mapeia o intervalo de entrada [-90, 90] para o intervalo de cálculo [0, 180]
+    //    - Se angulo = -90, angulo_mapeado = 0
+    //    - Se angulo = 0,   angulo_mapeado = 90
+    //    - Se angulo = 90,  angulo_mapeado = 180
+    int angulo_mapeado = angulo + 90;
+
+    // 3. Usa a sua fórmula original com o valor mapeado
+    uint32_t duty = (angulo_mapeado * (490 - 163)) / 180 + 163;
+    
+    // Atualiza o duty cycle do servo
     ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, duty);
     ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
 }
@@ -157,24 +178,39 @@ esp_err_t rota_senha(httpd_req_t *req) {
     // AQUI tem que fazer acesso ao BD e verificar se as credenciais batem
     //
     // Para um teste rápido, coloca-se um valor fixo
-    // 
-    if ((strcmp(senha->valuestring,"1234")==0) && (strcmp(ID->valuestring,"aluno")==0))
-    {
-        printf("Recebeu ID=%-10s e senha=%-10s    Status:Sucesso\n",ID->valuestring, senha->valuestring);
-
-        // envia msg de sucesso e abre a porta
+    //
+        //
+    // isso tinha que ser um metodo meus olhos ardem
+    
+    // ve no banco de dados se usuario existe
+   if (i2c.verificarUsuario(ID->valuestring, senha->valuestring)) {
+        // Bloco de SUCESSO: O método retornou 'true'
+        // Aqui ficam as ações que dependem do sucesso.
+        printf("Recebeu ID=%-10s e senha=%-10s   Status:Sucesso\n", ID->valuestring, senha->valuestring);
         cJSON_AddStringToObject(resposta, "Status", "Sucesso");
-        servo_set_angulo(90);  // abrir porta
-        vTaskDelay(pdMS_TO_TICKS(3000));
-        servo_set_angulo(0);   // fechar porta
+       
+        static int direcao = 1;
 
-    }
-    else
-    {
-        printf("Recebeu ID=%-10s e senha=%-10s    Status:Falha\n",ID->valuestring, senha->valuestring);
-        // Envia mensagem de falha
+        // Calcula o ângulo alvo com base na direção atual
+        int angulo_alvo = 90 * direcao;
+
+        // Imprime a ação para debug
+        printf("Acionando porta. Direção: %d, Ângulo Alvo: %d\n", direcao, angulo_alvo);
+
+        // Usa a sua função que aceita ângulos negativos
+        servo_set_angulo(angulo_alvo);
+
+        // INVERTE a direção para a PRÓXIMA vez que a função for chamada
+        direcao = direcao * -1; // ou direcao *= -1;
+    } else {
+        // Bloco de FALHA: O método retornou 'false'
+        // Aqui ficam as ações que dependem da falha.
+        printf("Recebeu ID=%-10s e senha=%-10s   Status:Falha\n", ID->valuestring, senha->valuestring);
         cJSON_AddStringToObject(resposta, "Status", "Falha");
     }
+
+    
+    
     cJSON_Delete(json);
 
     const char *res_str = cJSON_PrintUnformatted(resposta);
@@ -387,7 +423,6 @@ void app_main(void) {
     xTaskCreate(menu_console_task, "menu_console_task", 4096, NULL, 5, NULL);
 
     servo_init();
-    servo_set_angulo(45);
 }
 
 
