@@ -27,14 +27,10 @@ class I2C {
         tipo_cabecalho cabec;
     public:
         void listaTodos();
-        void listaTodos2();
         void registroUsuario(const char* id, const char* senha);
-        void registroUsuario2(const char* id, const char* senha);
         uint16_t qntdUsuarios();
         void limparEEPROM();
-        void removerPorID(const char* id);
         void removerPorID2(const char* id);
-        void init(gpio_num_t pino_scl, gpio_num_t pino_sda);
         void init2(gpio_num_t pino_scl, gpio_num_t pino_sda);
         bool verificarUsuario(const char* id_a_verificar, const char* senha_a_verificar);
 };

@@ -17,8 +17,6 @@
 //  se não conseguir fazer upload nessas velocidades, seu cabo USB pode ser de baixa qualidade, tente trocar o cabo
 //  ou reduzir a velocidade de upload para 115200 .
 
-
-
 #include <string.h>
 #include "mdns.h"
 #include "cJSON.h"
@@ -75,29 +73,16 @@ void servo_init() {
 }
 
 void servo_set_angulo(int angulo) {
-    // Mapear ângulo de 0° a 180° para duty entre 163 e 490
-    // uint32_t duty = (angulo * (490 - 163)) / 180 + 163;
-    // ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, duty);
-    // ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
-
-    // 1. (Opcional, mas recomendado) Garante que o ângulo está no limite de -90 a 90
     if (angulo < -90) {
         angulo = -90;
     }
     if (angulo > 90) {
         angulo = 90;
     }
-
-    // 2. Mapeia o intervalo de entrada [-90, 90] para o intervalo de cálculo [0, 180]
-    //    - Se angulo = -90, angulo_mapeado = 0
-    //    - Se angulo = 0,   angulo_mapeado = 90
-    //    - Se angulo = 90,  angulo_mapeado = 180
     int angulo_mapeado = angulo + 90;
 
-    // 3. Usa a sua fórmula original com o valor mapeado
     uint32_t duty = (angulo_mapeado * (490 - 163)) / 180 + 163;
     
-    // Atualiza o duty cycle do servo
     ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, duty);
     ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
 }
@@ -171,46 +156,31 @@ esp_err_t rota_senha(httpd_req_t *req) {
 
       cJSON *resposta = cJSON_CreateObject();
 
-    //
-    //
-    //
-    //
     // AQUI tem que fazer acesso ao BD e verificar se as credenciais batem
     //
     // Para um teste rápido, coloca-se um valor fixo
-    //
-        //
-    // isso tinha que ser um metodo meus olhos ardem
     
     // ve no banco de dados se usuario existe
    if (i2c.verificarUsuario(ID->valuestring, senha->valuestring)) {
-        // Bloco de SUCESSO: O método retornou 'true'
-        // Aqui ficam as ações que dependem do sucesso.
+        
         printf("Recebeu ID=%-10s e senha=%-10s   Status:Sucesso\n", ID->valuestring, senha->valuestring);
         cJSON_AddStringToObject(resposta, "Status", "Sucesso");
        
         static int direcao = 1;
 
-        // Calcula o ângulo alvo com base na direção atual
         int angulo_alvo = 90 * direcao;
 
-        // Imprime a ação para debug
         printf("Acionando porta. Direção: %d, Ângulo Alvo: %d\n", direcao, angulo_alvo);
 
-        // Usa a sua função que aceita ângulos negativos
         servo_set_angulo(angulo_alvo);
 
-        // INVERTE a direção para a PRÓXIMA vez que a função for chamada
-        direcao = direcao * -1; // ou direcao *= -1;
+        direcao = direcao * -1;
     } else {
-        // Bloco de FALHA: O método retornou 'false'
-        // Aqui ficam as ações que dependem da falha.
         printf("Recebeu ID=%-10s e senha=%-10s   Status:Falha\n", ID->valuestring, senha->valuestring);
         cJSON_AddStringToObject(resposta, "Status", "Falha");
     }
 
-    
-    
+       
     cJSON_Delete(json);
 
     const char *res_str = cJSON_PrintUnformatted(resposta);
@@ -226,9 +196,9 @@ esp_err_t rota_senha(httpd_req_t *req) {
 
 extern "C" void app_main() ;
 
-struct Usuario {             // Structure declaration
-  string usuario;         // Member (int variable)
-  string senha;   // Member (string variable)
+struct Usuario {            
+  string usuario;         
+  string senha;   
 } usuario;
 
 static const char *TAG = "LE_SERIAL";
@@ -243,71 +213,50 @@ void LE_SERIAL() {
         .source_clk = UART_SCLK_DEFAULT,
     };
 
-    // Instala o driver da UART, alocando buffers para RX e TX.
     ESP_ERROR_CHECK(uart_driver_install(UART_NUM, BUF_SIZE * 2, BUF_SIZE * 2, 0, NULL, 0));
     ESP_ERROR_CHECK(uart_param_config(UART_NUM, &uart_config));
 }
 
-// **Função leString CORRIGIDA**
+
 int leString(char *buf, int max_len)
 {
     int i = 0;
     uint8_t byte;
 
-    // Garante que o buffer é limpo antes de começar a ler
     memset(buf, 0, max_len);
 
-    while (true) { // Loop infinito, a quebra será interna
-        // Lê 1 byte com um timeout razoável. 20ms pode ser muito curto se a digitação for lenta.
-        // Vamos usar -1 (bloqueante) aqui para garantir que esperamos por entrada,
-        // ou um timeout maior para sistemas interativos.
-        // Para uma entrada de console, -1 é frequentemente aceitável se a task for dedicada a isso.
-        // Ou um timeout maior como 100ms.
-        int len_read = uart_read_bytes(UART_NUM, &byte, 1, portMAX_DELAY); // Espera indefinidamente por um byte
+    while (true) {
+        int len_read = uart_read_bytes(UART_NUM, &byte, 1, portMAX_DELAY);
 
         if (len_read > 0) {
-            // Depuração: ver o byte bruto recebido
-            // ESP_LOGI(TAG_UART, "Byte lido: 0x%02X ('%c')", byte, (char)byte);
-
-            // Tratamento de Enter (CR ou LF)
             if (byte == '\r' || byte == '\n') {
-                if (i > 0 && buf[i-1] == '\r' && byte == '\n') { // Se já recebemos CR e agora LF (CRLF)
-                    // Ignora o LF se o anterior foi CR para evitar duplicidade de nova linha
+                if (i > 0 && buf[i-1] == '\r' && byte == '\n') {
                     continue;
                 }
-                // Se foi apenas CR, ou apenas LF, ou CR seguido de LF (já tratado), saia
                 break;
             }
-
-            // Tratamento de Backspace (ASCII 0x08) ou Delete (ASCII 0x7F)
             if (byte == 0x08 || byte == 0x7F) {
                 if (i > 0) {
-                    i--; // Move o cursor de escrita para trás
-                    // Envia caracteres para apagar no terminal: Backspace, espaço, Backspace
+                    i--;
                     uart_write_bytes(UART_NUM, "\b \b", 3);
                 }
-                continue; // Não armazena o caractere de backspace/delete
+                continue;
             }
 
-            // Se for um caractere imprimível e há espaço no buffer
-            if (i < max_len - 1) { // -1 para deixar espaço para o terminador nulo
-                uart_write_bytes(UART_NUM, (const char *)&byte, 1); // Ecoa o caractere
+            if (i < max_len - 1) { 
+                uart_write_bytes(UART_NUM, (const char *)&byte, 1);
                 buf[i++] = byte;
             } else {
-                // Buffer cheio, mas continua ecoando para o usuário saber que está digitando
                 uart_write_bytes(UART_NUM, (const char *)&byte, 1);
             }
         }
-        // Se len_read == 0 e timeout não é portMAX_DELAY, o loop continua
     }
 
-    // Finaliza a string com terminador nulo
     buf[i] = '\0';
 
-    // Envia um New Line para o terminal após o Enter do usuário
-    uart_write_bytes(UART_NUM, "\r\n", 2); // Envia CRLF para compatibilidade com a maioria dos terminais
+    uart_write_bytes(UART_NUM, "\r\n", 2);
 
-    return i; // Retorna o número de caracteres lidos (excluindo o terminador nulo)
+    return i;
 }
 
 uint16_t input;
@@ -325,12 +274,11 @@ void mostraMenu() {
 }
 
 void menu_console_task(void *pvParameter) {
-    // Usuario vet[200];
-    // menu com as opcoes
+
     mostraMenu();
-        // Ajuste o tamanho desses buffers para corresponder ao RegistroUsuario + 1 para o null terminator
-    char usuario_id[16]; // id[16] no struct RegistroUsuario significa 15 chars + null
-    char senha_val[16];  // senha[16] no struct RegistroUsuario significa 15 chars + null
+    
+    char usuario_id[16];
+    char senha_val[16]; 
     int input = 0;
 
     char usuario[30], senha[30];
@@ -347,7 +295,7 @@ void menu_console_task(void *pvParameter) {
                 break;
             case 2:
                 printf("Digite seu nome de usuario (max 15 chars): \n");
-                // Passe o tamanho correto do buffer: sizeof(usuario_id) que é 16
+                
                 len = leString(usuario_id, sizeof(usuario_id));
                 if (len > 0) {
                     printf("Voce Digitou seu nome de usuario: %s\n", usuario_id);
@@ -356,7 +304,7 @@ void menu_console_task(void *pvParameter) {
                 }
 
                 printf("Digite sua senha (max 15 chars): \n");
-                // Passe o tamanho correto do buffer: sizeof(senha_val) que é 16
+                
                 len = leString(senha_val, sizeof(senha_val));
                 if (len > 0) {
                      printf("Voce Digitou sua senha: %s\n", senha_val);
@@ -393,32 +341,15 @@ void menu_console_task(void *pvParameter) {
 }
 
 void app_main(void) {
-    sist_arquivos.start("/storage", 10);                  // Usa SA na Flash
+    sist_arquivos.start("/storage", 10);                  
 
-    wifi.accessPoint(AP_SSID,AP_CHANNEL,MAX_CONN);        // Cria um AccessPoint
-    mdns.start(NOME_MDNS);                                // Cria um mDNS para acesso usando nome ex: ping porta.local
+    wifi.accessPoint(AP_SSID,AP_CHANNEL,MAX_CONN);        
+    mdns.start(NOME_MDNS);                               
 
-    webServer.addHandler("/*",     HTTP_GET, serve_estaticos);  // Serve arquivos estáticos
-    webServer.addHandler("/senha", HTTP_POST,rota_senha);       // Trata Rota 
+    webServer.addHandler("/*",     HTTP_GET, serve_estaticos);  
+    webServer.addHandler("/senha", HTTP_POST,rota_senha);       
 
-    webServer.start();                                 // Inicia servidor WEB
-
-    // Inicializa o I2C primeiro, pois registroUsuario precisa dele
-    // printf("Inicializando I2C...\n");
-    // i2c.init(PINO1, PINO2); // Use os pinos definidos no seu projeto
-    // printf("I2C inicializado.\n");
-
-    // --- Início do teste do registro de usuário ---
-    // printf("\n--- Testando registro de usuario ---\n");
-
-    // // Defina os dados de teste para ID e senha
-    // const char* test_id = "teste_id_001";
-    // const char* test_senha = "senha_secreta";
-
-    // printf("Tentando registrar usuario com ID: '%s', Senha: '%s'\n", test_id, test_senha);
-    // i2c.registroUsuario(test_id, test_senha); // Chama diretamente a função de registro
-
-    // task para mostrar o menu no console
+    webServer.start();
     LE_SERIAL();
     xTaskCreate(menu_console_task, "menu_console_task", 4096, NULL, 5, NULL);
 
