@@ -309,7 +309,7 @@ void menu_console_task(void *pvParameter) {
                 i2c.listaTodos();
                 mostraMenu();
                 break;
-            case 2: 
+            case 2:
                 printf("Digite seu nome de usuario (max 15 chars): \n");
                 // Passe o tamanho correto do buffer: sizeof(usuario_id) que é 16
                 len = leString(usuario_id, sizeof(usuario_id));
@@ -332,7 +332,7 @@ void menu_console_task(void *pvParameter) {
                 mostraMenu();
                 break;
             case 3:
-                i2c.qntdUsuarios();
+                printf("Quantidade de usuários cadastrados: %u\n", i2c.qntdUsuarios());
                 mostraMenu();
                 break;
             case 4:
@@ -343,11 +343,12 @@ void menu_console_task(void *pvParameter) {
                 if (len > 0) {
                     printf("Você Digitou o nome de usuário: %s\n", usuario);
                 }
-                i2c.removerPorID(usuario);
+                i2c.removerPorID2(usuario);
                 mostraMenu();
                 break;
             case 5:
-                i2c.init(PINO1, PINO2);
+                i2c.init2(PINO1, PINO2);
+                i2c.limparEEPROM();
                 mostraMenu();
                 break;
         }
